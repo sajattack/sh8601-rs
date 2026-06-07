@@ -357,7 +357,7 @@ where
 {
     interface: IFACE,
     reset: RST,
-    pub framebuffer: Framebuffer,
+    framebuffer: Framebuffer,
     pub col_offset: u16,
     config: DisplaySize,
     _color: PhantomData<COLOR>,
@@ -735,12 +735,20 @@ where
         y_start: u16,
         y_end: u16,
         color: ColorMode,
-        pixel_data: &[u8]
-    ) -> Result<(), DriverError<IFACE::Error, RST::Error>> {
+        pixels: &[embedded_graphics_core::pixelcolor::Rgb565] ) -> Result<(), DriverError<IFACE::Error, RST::Error>> 
+    { 
         self.set_window(x_start + self.col_offset, y_start, x_end - 1 + self.col_offset, y_end)?;
 
+
+                let bpp = 2;
+                //let offset = coord.y as usize * stride + coord.x as usize * bpp;
+                for (offset,color) in pixels.iter().enumerate() {
+                    color.encode(&mut self.framebuffer[offset*bpp..offset*bpp + bpp]);
+                }
+
+
         self.interface
-            .send_pixels(pixel_data)
+            .send_pixels(&self.framebuffer)
             .map_err(DriverError::InterfaceError)?;
         Ok(())
     }
