@@ -357,7 +357,8 @@ where
 {
     interface: IFACE,
     reset: RST,
-    framebuffer: Framebuffer,
+    pub framebuffer: Framebuffer,
+    pub col_offset: u16,
     config: DisplaySize,
     _color: PhantomData<COLOR>,
 }
@@ -381,6 +382,7 @@ where
     interface: IFACE,
     reset: RST,
     config: DisplaySize,
+    col_offset: u16,
     init_commands: Option<&'static [(u8, &'static [u8], u16)]>,
     _color: PhantomData<COLOR>,
 }
@@ -398,6 +400,11 @@ where
     /// sleep-out, color mode, and display-on commands.
     pub fn with_init_commands(mut self, commands: &'static [(u8, &'static [u8], u16)]) -> Self {
         self.init_commands = Some(commands);
+        self
+    }
+
+    pub fn with_col_offset(mut self, col_offset: u16) -> Self {
+        self.col_offset = col_offset;
         self
     }
 
@@ -419,6 +426,7 @@ where
             reset: self.reset,
             framebuffer: Framebuffer::Heap(Box::new([0u8; N])),
             config: self.config,
+            col_offset: self.col_offset,
             _color: PhantomData,
         };
         driver.hard_reset()?;
@@ -462,6 +470,7 @@ where
             interface,
             reset,
             config,
+            col_offset: 0,
             init_commands: None,
             _color: PhantomData,
         }
@@ -489,6 +498,7 @@ where
             reset,
             framebuffer: Framebuffer::Static(&mut framebuffer[..]),
             config,
+            col_offset: 0,
             _color: PhantomData,
         };
         driver.hard_reset()?;
@@ -504,6 +514,7 @@ where
         reset: RST,
         color: ColorMode,
         config: DisplaySize,
+        col_offset: u16,
         mut delay: DELAY,
     ) -> Result<Self, DriverError<IFACE::Error, RST::Error>>
     where
@@ -515,6 +526,7 @@ where
             reset,
             framebuffer: Framebuffer::Heap(Box::new([0u8; N])),
             config,
+            col_offset,
             _color: PhantomData,
         };
         driver.hard_reset()?;
@@ -707,7 +719,7 @@ where
     /// This is typically called after drawing operations are complete.
     pub fn flush(&mut self) -> Result<(), DriverError<IFACE::Error, RST::Error>> {
         // Ensure the window covers the whole framebuffer before writing
-        self.set_window(0, 0, self.config.width - 1, self.config.height - 1)?;
+        self.set_window(0+self.col_offset, 0, self.config.width - 1 + self.col_offset, self.config.height - 1)?;
         // Send the pixel data via the interface's optimized method.
         // The send_pixels method itself should handle sending RAMWR (0x2C).
         self.interface
@@ -716,35 +728,19 @@ where
         Ok(())
     }
 
-    pub fn partial_flush(
+    pub fn partial_draw(
         &mut self,
         x_start: u16,
         x_end: u16,
         y_start: u16,
         y_end: u16,
         color: ColorMode,
+        pixel_data: &[u8]
     ) -> Result<(), DriverError<IFACE::Error, RST::Error>> {
-        self.set_window(x_start, y_start, x_end, y_end)?;
-        let bytes_per_pixel = color.bytes_per_pixel();
-        let fb_width = self.config.width as usize * bytes_per_pixel;
-        let width = (x_end - x_start + 1) as usize;
-        let height = (y_end - y_start + 1) as usize;
-        let mut pixel_data = alloc::vec::Vec::with_capacity(width * height * bytes_per_pixel);
-
-        for y in 0..height {
-            let offset = (y_start as usize + y) * fb_width + (x_start as usize * bytes_per_pixel);
-            let row_end = offset + (width * bytes_per_pixel);
-            if offset < self.framebuffer.len() && row_end <= self.framebuffer.len() {
-                pixel_data.extend_from_slice(&self.framebuffer[offset..row_end]);
-            } else {
-                return Err(DriverError::InvalidConfiguration(
-                    "Framebuffer slice out of bounds",
-                ));
-            }
-        }
+        self.set_window(x_start + self.col_offset, y_start, x_end - 1 + self.col_offset, y_end)?;
 
         self.interface
-            .send_pixels(&pixel_data)
+            .send_pixels(pixel_data)
             .map_err(DriverError::InterfaceError)?;
         Ok(())
     }
