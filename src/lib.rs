@@ -53,6 +53,7 @@ extern crate alloc;
 mod graphics_core;
 
 use core::marker::PhantomData;
+use core::ops::Deref;
 
 use alloc::boxed::Box;
 use embedded_graphics_core::draw_target::DrawTarget;
@@ -735,14 +736,14 @@ where
         y_start: u16,
         y_end: u16,
         color: ColorMode,
-        pixels: &[embedded_graphics_core::pixelcolor::Rgb565] ) -> Result<(), DriverError<IFACE::Error, RST::Error>> 
+        pixels: &[u16] ) -> Result<(), DriverError<IFACE::Error, RST::Error>> 
     { 
         self.set_window(x_start + self.col_offset, y_start, x_end - 1 + self.col_offset, y_end)?;
 
 
                 let bpp = 2;
-                //let offset = coord.y as usize * stride + coord.x as usize * bpp;
-                for (offset,color) in pixels.iter().enumerate() {
+                for (offset,word) in pixels.iter().enumerate() {
+                    let color = Into::<Rgb565>::into(RawU16::new(*word));
                     color.encode(&mut self.framebuffer[offset*bpp..offset*bpp + bpp]);
                 }
 
