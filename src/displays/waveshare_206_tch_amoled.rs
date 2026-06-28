@@ -15,7 +15,7 @@ const CMD_RAMWR: u32 = 0x2C;
 const CMD_RAMWRC: u32 = 0x3C;
 const QSPI_PIXEL_OPCODE: u8 = 0x32;
 const QSPI_CONTROL_OPCODE: u8 = 0x02;
-pub const DMA_CHUNK_SIZE: usize = 16380;
+pub const DMA_CHUNK_SIZE: usize = 410*2;
 
 /// QSPI implementation of ControllerInterface for SH8601
 pub struct Ws206TouchAmoledDriver {
@@ -77,7 +77,7 @@ impl ControllerInterface for Ws206TouchAmoledDriver {
         let mut chunks = pixels.chunks(DMA_CHUNK_SIZE).enumerate();
 
         while let Some((index, chunk)) = chunks.next() {
-            if index == 0 {
+            if index % 2 == 0 {
                 self.qspi.half_duplex_write(
                     DataMode::Quad,
                     Command::_8Bit(QSPI_PIXEL_OPCODE as u16, DataMode::Single),

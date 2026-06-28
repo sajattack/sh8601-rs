@@ -729,24 +729,22 @@ where
         Ok(())
     }
 
-    pub fn partial_draw(
+    pub fn set_pixels<P> (
         &mut self,
         x_start: u16,
-        x_end: u16,
         y_start: u16,
+        x_end: u16,
         y_end: u16,
-        color: ColorMode,
-        pixels: &[u16] ) -> Result<(), DriverError<IFACE::Error, RST::Error>> 
+        pixels: P) -> Result<(), DriverError<IFACE::Error, RST::Error>> 
+    where P: IntoIterator<Item = Rgb565>
     { 
         self.set_window(x_start + self.col_offset, y_start, x_end - 1 + self.col_offset, y_end)?;
 
-
-                let bpp = 2;
-                for (offset,word) in pixels.iter().enumerate() {
-                    let color = Into::<Rgb565>::into(RawU16::new(*word));
-                    color.encode(&mut self.framebuffer[offset*bpp..offset*bpp + bpp]);
-                }
-
+        let bpp = 2;
+        for (offset,pixel) in pixels.into_iter().enumerate() {
+            let color: Rgb565 = pixel.into();
+            color.encode(&mut self.framebuffer[offset*bpp..offset*bpp + bpp]);
+        }
 
         self.interface
             .send_pixels(&self.framebuffer)
