@@ -7,7 +7,7 @@ use esp_hal::{
     delay::Delay,
     spi::{
         Error as SpiError,
-        master::{Address, Command, DataMode, SpiDma},
+        master::{Address, Command, DataMode, SpiDmaBus},
     },
 };
 
@@ -19,12 +19,12 @@ pub const DMA_CHUNK_SIZE: usize = 410*2;
 
 /// QSPI implementation of ControllerInterface for SH8601
 pub struct Ws206TouchAmoledDriver {
-    pub qspi: SpiDma<'static, Blocking>,
+    pub qspi: SpiDmaBus<'static, Blocking>,
     pub use_co5300_init_cmds: bool,
 }
 
 impl Ws206TouchAmoledDriver {
-    pub fn new(qspi: SpiDma<'static, Blocking>) -> Self {
+    pub fn new(qspi: SpiDmaBus<'static, Blocking>) -> Self {
         Ws206TouchAmoledDriver {
             qspi,
             use_co5300_init_cmds: false,

@@ -735,10 +735,10 @@ where
         y_start: u16,
         x_end: u16,
         y_end: u16,
-        pixels: P) -> Result<(), DriverError<IFACE::Error, RST::Error>> 
+        pixels: P) -> Result<(), ()> 
     where P: IntoIterator<Item = Rgb565>
     { 
-        self.set_window(x_start + self.col_offset, y_start, x_end - 1 + self.col_offset, y_end)?;
+        self.set_window(x_start + self.col_offset, y_start, x_end - 1 + self.col_offset, y_end).map_err(|_|());
 
         let bpp = 2;
         for (offset,pixel) in pixels.into_iter().enumerate() {
@@ -748,7 +748,7 @@ where
 
         self.interface
             .send_pixels(&self.framebuffer)
-            .map_err(DriverError::InterfaceError)?;
+            .map_err(|_|())?;
         Ok(())
     }
 }
